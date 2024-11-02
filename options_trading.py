@@ -119,7 +119,10 @@ def implied_vol(S, K, T, r, option_price, vol_init=0.3, epsilon=0.00001):
 
 
 ##Get the volatility surface
-def volatility_surface(ticker, r=0.02, price=False):
+def volatility_surface(ticker, r=0.02, price=False, method="optimizer"):
+    """
+    method : "optimizer" or "newton"
+    """
     df=yf.download(ticker, start='2024-06-01')
     df.dropna(inplace=True)
     df.ffill(inplace=True)
@@ -139,7 +142,12 @@ def volatility_surface(ticker, r=0.02, price=False):
             time_to_maturity.append(maturity)
             strike.append(strikes.iloc[i])
             if maturity>0:
-                implied_volatility.append(implied_vol(S, strikes.iloc[i], maturity, r, option_prices.iloc[i]))
+                if method=="optimizer":
+                    implied_volatility.append(implied_vol(S, strikes.iloc[i], maturity, r, option_prices.iloc[i]))
+                elif method=="newton":
+                    implied_volatility.append(implied_vol_newton(S, strikes.iloc[i], maturity, r, option_prices.iloc[i]))
+                else:
+                    print("method should be either 'optimizer' or 'newton'")
             else:
                 implied_volatility.append(np.nan)    ##l'option a expiré donc il n'y a pas de volatilité implicite
         
@@ -149,7 +157,7 @@ def volatility_surface(ticker, r=0.02, price=False):
     else:
         return data
 
-def plot_volatility_surface(ticker, r=0.02):
+def plot_volatility_surface(ticker, r=0.02, method="optimizer"):
     data, S=volatility_surface(ticker, r, price=True)
     surface=data.pivot_table(values='Implied volatility', index='Strikes', columns='Time to maturity').dropna()
 
