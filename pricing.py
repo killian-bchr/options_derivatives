@@ -117,3 +117,37 @@ def digit_option(S0, barrier, T, r, vol, digit, N, M):
     digit_price=np.exp(-r*T)*payoffs.mean()
 
     return digit_price
+
+### Price a barrier option using Monte Carlo Simulations
+
+def barrier_option_price(S0, barrier, K, T, r, vol, N, M, opt_type="C", barrier_type="knock_in"):
+    """
+    opt_type : "C" for Call and "P" for Put
+    barrier_type : "knock_in" or "knock_out"
+    """
+    asset_prices = monte_carlo_vectorized(S0, T, r, vol, N, M)
+    final_prices = asset_prices.iloc[-1, :]
+
+    # Return a Series a Boolean : True if barrier was crossed and False if not
+    crossed_barrier = np.any(asset_prices>barrier, axis=0)
+
+    # Compute the right crossed_barrier Series according to the barrier_type
+    if barrier_type == "knock_in":
+        active_payoff = crossed_barrier
+    elif barrier_type == "knock_out":
+        active_payoff = ~crossed_barrier
+    else:
+        raise ValueError("barrier_type should be either 'knock_in' or 'knock_out'")
+
+    # Compute the payoff depending on if it is a Call or a Put
+    if opt_type == "C":
+        payoffs = active_payoff * np.maximum(final_prices - K, 0)
+    elif opt_type == "P":
+        payoffs = active_payoff * np.maximum(K - final_prices, 0)
+    else:
+        raise ValueError("opt_type should be either 'C' for a call or 'P' for a put")
+
+    # Compute the price actualized
+    option_price = np.exp(-r * T) * payoffs.mean()
+
+    return option_price
