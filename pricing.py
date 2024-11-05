@@ -118,7 +118,7 @@ def digit_option(S0, barrier, T, r, vol, digit, N, M):
 
     return digit_price
 
-### Price a barrier option using Monte Carlo Simulations
+### Price a Barrier option using Monte Carlo Simulations
 
 def barrier_option_price(S0, barrier, K, T, r, vol, N, M, opt_type="C", barrier_type="knock_in"):
     """
@@ -151,3 +151,58 @@ def barrier_option_price(S0, barrier, K, T, r, vol, N, M, opt_type="C", barrier_
     option_price = np.exp(-r * T) * payoffs.mean()
 
     return option_price
+
+### Price a Ladder option using Monte Carlo simulations
+
+def ladder_option_price(S0, strikes, barriers, T, r, vol, N, M, rebates):
+    asset_prices=monte_carlo_vectorized(S0, T, r, vol, N, M)
+    final_prices=asset_prices.iloc[-1, :]
+
+    payoff = pd.Series(0, index=asset_prices.columns) 
+
+    for i in range(len(barriers)):
+        crossed_barrier=np.any(asset_prices>barriers[i], axis=0)
+
+        payoff+=crossed_barrier*np.maximum(barriers[i]-strikes[i], 0)*rebates[i]
+    
+    payoff+=np.maximum(final_prices-strikes[-1], 0)
+    
+    option_price=np.exp(-r*T)*payoff.mean()
+
+    return option_price
+
+### Price a Lookback option using Monte Carlo simulations
+
+def lookback_option_price(S0, K, T, r, vol, N, M, opt_type='C', strike_type='fixed'):
+    """
+    opt_type : "C" for a Call option and "P" for a Put option
+    strike_type : "fixed" for "float"
+    """
+    asset_prices=monte_carlo_vectorized(S0, T, r, vol, N, M)
+    final_prices=asset_prices.iloc[-1, :]
+
+    max_prices=asset_prices.max(axis=0)
+    min_prices=asset_prices.min(axis=0)
+
+    if strike_type == 'fixed':
+        if opt_type == 'C':
+            payoff=np.maximum(max_prices-K, 0)
+        elif opt_type == 'P':
+            payoff=np.maximum(K-min_prices, 0)
+        else:
+            raise ValueError("opt_type should be either 'C' for a call or 'P' for a put")
+    
+    elif strike_type == 'float':
+        if opt_type == 'C':
+            payoff=np.maximum(final_prices-min_prices, 0)
+        elif opt_type == 'P':
+            payoff=np.maximum(max_prices-final_prices, 0)
+        else:
+            raise ValueError("opt_type should be either 'C' for a call or 'P' for a put")
+        
+    else:
+        raise ValueError("strike_type should be either 'fixed' or 'float' ")
+    
+    lookback_option_price=np.exp(-r*T)*payoff.mean()
+
+    return lookback_option_price
