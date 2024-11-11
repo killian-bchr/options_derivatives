@@ -184,7 +184,7 @@ def plot_volatility_surface(ticker, r=0.02, method="optimizer"):
     plt.show()
         
         
-##Get the option informations
+##Get option informations
         
 def get_options_dates(ticker_symbol):
     """Take a ticker and returns the list of the existing options expiration dates for this ticker"""
