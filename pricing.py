@@ -72,7 +72,7 @@ def monte_carlo_vectorized(S0, T, r, vol, M, antithetic=False):
 
 ### Heston Model
 def heston_model(S0, v0, r, rho, kappa, theta, sigma, T, M):
-    N=round(T*252)   ## 252 times for each trading day in a year
+    N=int(round(T*252))   ## 252 times for each trading day in a year
     dt = T / N
     mu = np.array([0, 0])
     cov = np.array([[1, rho], [rho, 1]])
@@ -157,7 +157,7 @@ def vanilla_option_price(S0, K, T, r, vol, M, opt_type='C', antithetic=False):
 def digit_option_price(S0, barrier, T, r, vol, digit, M, antithetic=False):
     """
     S0 : spot price at time t=0
-    barrier : value to reach to get the digit
+    barrier : The barrier value that needs to be reached for the option to pay out (float)
     T : maturity (in years)
     r : risk-free rate
     vol : implied volatility
@@ -410,6 +410,7 @@ def autocallable_price(A, S0, H1, H2, H3, c, coupon_period, T, r, vol, M, antith
     """
     # Number of observations
     n=round(T/(coupon_period/12))   # Convert coupon_period in years and get the number of observations
+    alpha=round(A/S0)
 
     asset_prices=monte_carlo_vectorized(S0, T, r, vol, M, antithetic)
     final_prices=asset_prices.iloc[-1, :]
@@ -438,7 +439,7 @@ def autocallable_price(A, S0, H1, H2, H3, c, coupon_period, T, r, vol, M, antith
     knock_in_barrier=pd.DataFrame(np.where((asset_prices<H1)&(knock_out_barrier_full==False), True, False), index=asset_prices.index, columns=asset_prices.columns)
     knock_in_barrier=knock_in_barrier.cumsum(axis=0).astype(bool)
     knock_in_barrier=pd.DataFrame(np.where(asset_prices<H1, True, False), index=asset_prices.index, columns=asset_prices.columns).any(axis=0)
-    option_payoff=pd.DataFrame(np.where(knock_in_barrier==True, -np.exp(-r*T)*np.maximum(S0-final_prices, 0), 0), index=asset_prices.columns).T
+    option_payoff=pd.DataFrame(np.where(knock_in_barrier==True, -alpha*np.exp(-r*T)*np.maximum(S0-final_prices, 0), 0), index=asset_prices.columns).T
 
     payoff=pd.concat([coupons, option_payoff, redeem_payoff], axis=0, ignore_index=True).sum(axis=0)
     price=payoff.mean()
