@@ -4,8 +4,9 @@ import pandas as pd
 import yfinance as yf
 from fredapi import Fred
 from datetime import datetime
-import options_trading as opt
+import options as opt
 from scipy.optimize import least_squares
+from scipy.interpolate import griddata
 
 #FRED API : 54dc21b344d021c79ae6bcd13013fd62
 
@@ -150,3 +151,25 @@ def plot_volatility_surface(ticker, r=0.02, method="optimizer"):
     #ax.plot_surface(X_mesh, Y_stock_price, Z_mesh, color='red', alpha=0.3)
 
     plt.show()
+
+
+# Get rikfree-rate and implied volatility
+def calibration(ticker, K, T):
+    S0=yf.download(ticker).iloc[-1]['Adj Close']
+
+    # Get the riskfree-rate
+    rates=get_riskfree_rate()
+    r=rates[str(T*12)]/100
+
+    # Get the volatility surface
+    volatility_surface_=volatility_surface(ticker, r=r)
+
+    maturities=volatility_surface_['Time to maturity'].values
+    strikes=volatility_surface_['Strikes'].values
+    volatilities=volatility_surface_['Implied volatility'].values
+
+    # Interpolate if necessary to get the implied volatility
+    points=np.array([maturities, strikes]).T
+    IV=griddata(points, volatilities, (T, K), method='linear').item()/100
+
+    return r, IV

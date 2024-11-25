@@ -1,7 +1,7 @@
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
-import options_trading as opt
+import options as opt
 
 
 ### Rajouter les dividendes !!!
