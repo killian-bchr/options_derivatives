@@ -155,7 +155,7 @@ def plot_volatility_surface(ticker, r=0.02, method="optimizer"):
 
 # Get rikfree-rate and implied volatility
 def calibration(ticker, K, T):
-    S0=yf.download(ticker).iloc[-1]['Adj Close']
+    S0=yf.download(ticker).iloc[-1]['Close']
 
     # Get the riskfree-rate
     rates=get_riskfree_rate()
@@ -172,4 +172,9 @@ def calibration(ticker, K, T):
     points=np.array([maturities, strikes]).T
     IV=griddata(points, volatilities, (T, K), method='linear').item()/100
 
-    return r, IV
+    return S0, r, IV
+
+def get_price(ticker, K, T, fonction, opt_type='C', M=100000, antithetic=False):
+    S0, r, IV = calibration(ticker, K, T)
+    price=fonction(S0=S0, K=K, T=T, r=r, vol=IV, opt_type=opt_type, M=M, antithetic=antithetic)
+    return price
