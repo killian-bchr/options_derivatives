@@ -6,6 +6,109 @@ import options as opt
 
 ### Rajouter les dividendes !!!
 
+### Computation of the Greeks
+def get_delta(function, epsilon=1E-6, **kwargs):
+    if 'S0' not in kwargs:
+        raise ValueError("The 'S0' parameter (spot price) is required in **kwargs.")
+    
+    kwargs_plus = kwargs.copy()
+    kwargs_plus['S0'] += epsilon
+
+    kwargs_minus = kwargs.copy()
+    kwargs_minus['S0'] -= epsilon
+
+    price_plus = function(**kwargs_plus)
+    price_minus = function(**kwargs_minus)
+    return (price_plus-price_minus)/(2*epsilon)
+
+def get_gamma(function, epsilon=1.8E-2, **kwargs):
+    if 'S0' not in kwargs:
+        raise ValueError("The 'S0' parameter (spot price) is required in **kwargs.")
+    
+    kwargs_plus = kwargs.copy()
+    kwargs_plus['S0'] += epsilon
+
+    kwargs_minus = kwargs.copy()
+    kwargs_minus['S0'] -= epsilon
+
+    price_plus = function(**kwargs_plus)
+    price_minus = function(**kwargs_minus)
+    price = function(**kwargs)
+    return (price_plus+price_minus-2*price)/(epsilon**2)
+
+def get_rho(function, epsilon=1E-6, **kwargs):
+    if 'r' not in kwargs:
+        raise ValueError("The 'r' parameter (interest rate in percent) is required in **kwargs.")
+    
+    kwargs_plus = kwargs.copy()
+    kwargs_plus['r'] += epsilon
+
+    kwargs_minus = kwargs.copy()
+    kwargs_minus['r'] -= epsilon
+
+    r_plus = function(**kwargs_plus)
+    r_minus = function(**kwargs_minus)
+    return (r_plus-r_minus)/(2*epsilon)*0.01 #for 1% change in interest rate
+
+def get_vega(function, epsilon=1E-6, **kwargs):
+    if 'vol' not in kwargs:
+        raise ValueError("The 'vol' parameter (volatility) is required in **kwargs.")
+    
+    kwargs_plus = kwargs.copy()
+    kwargs_plus['vol'] += epsilon
+
+    kwargs_minus = kwargs.copy()
+    kwargs_minus['vol'] -= epsilon
+
+    vol_plus = function(**kwargs_plus)
+    vol_minus = function(**kwargs_minus)
+    return (vol_plus-vol_minus)/(2*epsilon)*0.01 #for 1% change in volatility
+
+def get_theta(function, delta_t=0.1/365, **kwargs):
+    if 'T' not in kwargs:
+        raise ValueError("The 'T' parameter (time to maturity) is required in **kwargs.")
+    
+    kwargs_plus = kwargs.copy()
+    kwargs_plus['T'] += delta_t
+
+    time_current = function(**kwargs)
+    time_plus = function(**kwargs_plus)
+
+    return ((time_current-time_plus)/delta_t)/365  # percentage change for 1 day
+
+def get_greeks(function, epsilon=1E-6, **kwargs):
+    
+    greeks_function = {
+        'delta': get_delta,
+        'gamma': get_gamma,
+        'vega': get_vega,
+        'rho': get_rho,
+        'theta': get_theta
+    }
+
+    greeks_df = pd.DataFrame(list(greeks_function.items()), columns=['Greek', 'Function'])
+
+    def compute_greek(row):
+        greek_name = row['Greek']
+        greek_function = row['Function']
+
+        if greek_name == 'gamma':
+            epsilon_adjusted = epsilon / 5E-5
+        else:
+            epsilon_adjusted = epsilon
+
+        try:
+            result = greek_function(function, epsilon_adjusted, **kwargs)
+            return result
+        
+        except Exception as e:
+            print(f"Error computing the {greek_name}: {e}")
+            return None
+
+    greeks_df['Value'] = greeks_df.apply(compute_greek, axis=1)
+
+    return greeks_df[['Greek', 'Value']]
+
 ### Get M Monte Carlo simulations of asset prices over the time period
 def monte_carlo_iteratif(S0, T, r, vol, M):
     """
@@ -47,6 +150,9 @@ def monte_carlo_vectorized(S0, T, r, vol, M, antithetic=False):
 
     Return a matrix with M columns for each simulation where a simulation represents a path for the asset price
     """
+
+    # Fix random seed for reproductibility
+    np.random.seed(123)
 
     N=int(round(T*252))   ## 252 times for each trading day in a year
     dt=T/N

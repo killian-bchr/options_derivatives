@@ -140,7 +140,7 @@ def plot_ef_2(n_points, er, cov, style=".-"):
     ef=pd.DataFrame({"Returns":rets, "Volatility":vols})
     return ef.plot.line(x="Volatility", y="Returns", style=style)
 
-def target_is_met(w,er):
+def target_is_met(target_return, w, er):
     return target_return - portfolio_return(w,er)
 
 def minimize_vol(target_return, er, cov):
@@ -152,7 +152,7 @@ def minimize_vol(target_return, er, cov):
     return_is_target = {
         'type':'eq',
         'args':(er,),
-        'fun': lambda weights, er : target_return - portfolio_return(weights,er)
+        'fun': lambda weights, er : target_return - portfolio_return(target_return, weights, er)
     }
     weights_sum_to_1 = {
         'type':'eq',
@@ -400,7 +400,7 @@ def pv (flows,r):
     discounts=discount(dates,r)
     return discounts.multiply(flows, axis='rows').sum()
 
-def funding_ratio(assets, liabilites, r):
+def funding_ratio(assets, liabilities, r):
     """Computes the funding ratio of some assets given liabilities and interest rate
     """
     return pv(assets, r)/pv(liabilities, r)

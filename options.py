@@ -7,7 +7,7 @@ from scipy.stats import norm
 from sys import exit
 from scipy.optimize import least_squares
 
-###Calculation of the greeks
+### Computation of the greeks with Black-Scholes model
 
 def black_scholes(r, S, K, T, sigma, type="c"):
     
@@ -81,7 +81,7 @@ def rho_calc(r, S, K, T, sigma, type="c"):
         print("Please confirm option type, either 'c' for Call or 'p' for Put")
         
         
-##Get the implied volatility
+### Get the implied volatility
 def implied_vol_newton(S, K, T, r, option_price, vol_init=0.3, epsilon=0.00001):
     """Calculate the implied volatility of an European option with the Newton-Raphson method"""
     vol_new=None
