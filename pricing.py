@@ -77,7 +77,7 @@ def get_theta(function, delta_t=0.1/365, **kwargs):
     return ((time_current-time_plus)/delta_t)/365  # percentage change for 1 day
 
 def get_greeks(function, epsilon=1E-6, **kwargs):
-    
+
     greeks_function = {
         'delta': get_delta,
         'gamma': get_gamma,
@@ -154,8 +154,14 @@ def monte_carlo_vectorized(S0, T, r, vol, M, antithetic=False):
     # Fix random seed for reproductibility
     np.random.seed(123)
 
-    N=int(round(T*252))   ## 252 times for each trading day in a year
-    dt=T/N
+    if T > 0:
+        N=int(round(T*252))   ## 252 times for each trading day in a year
+        dt=T/N
+    elif T == 0:
+        return pd.DataFrame(np.full((1, M), S0), columns=[f"{i+1}" for i in range(M)])
+    else:
+        raise ValueError("T should be positive")
+    
     nudt=(r-0.5*vol**2)*dt
     volsdt=vol*np.sqrt(dt)
 

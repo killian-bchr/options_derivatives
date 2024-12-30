@@ -5,6 +5,7 @@ import yfinance as yf
 from fredapi import Fred
 from datetime import datetime
 import options as opt
+import seaborn as sns
 from scipy.optimize import least_squares
 from scipy.interpolate import griddata
 
@@ -87,55 +88,44 @@ def implied_vol(S, K, T, r, option_price, vol_init=0.3, epsilon=0.00001):
     return implied_vol*100
 
 
-##Get the volatility surface
-def volatility_surface(ticker, r=0.02, price=False, method="optimizer"):
-    """
-    method : "optimizer" or "newton"
-    """
-    df=yf.download(ticker, start='2024-06-01')
-    df.dropna(inplace=True)
-    df.ffill(inplace=True)
-    #today=datetime.now().date()
-    #S=df.loc[today, 'Close']
-    S=df['Close'].iloc[-1]
-    exp_dates=opt.get_options_dates(ticker)
-    time_to_maturity=[]
-    strike=[]
-    implied_volatility=[]
-    for date in exp_dates:
-        strikes=opt.call(ticker, date)['strike']
-        option_prices=opt.call(ticker, date)['lastPrice']
-        days_to_maturity=(datetime.strptime(date, '%Y-%m-%d').date()-datetime.now().date()).days
-        maturity=days_to_maturity/365
-        for i in range (len(strikes)):
-            time_to_maturity.append(maturity)
-            strike.append(strikes.iloc[i])
-            if maturity>0:
-                if method=="optimizer":
-                    implied_volatility.append(implied_vol(S, strikes.iloc[i], maturity, r, option_prices.iloc[i]))
-                elif method=="newton":
-                    implied_volatility.append(implied_vol_newton(S, strikes.iloc[i], maturity, r, option_prices.iloc[i]))
-                else:
-                    print("method should be either 'optimizer' or 'newton'")
-            else:
-                implied_volatility.append(np.nan)    ##l'option a expiré donc il n'y a pas de volatilité implicite
-        
-    data=pd.DataFrame({'Time to maturity':time_to_maturity, 'Strikes':strike, 'Implied volatility':implied_volatility})
-    if price:
-        return data, S
-    else:
-        return data
+##Get the volatility surface  
+def volatility_surface(ticker_symbol, r=0.02):
+    ticker=yf.Ticker(ticker_symbol)
+    S=ticker.history(period="1d")['Close'].iloc[-1]
+    exp_dates=ticker.options
+    df=pd.DataFrame({'exp_dates':exp_dates})
+    df['exp_dates'] = pd.to_datetime(df['exp_dates'], format='%Y-%m-%d')
+    df['maturity'] = (df['exp_dates'] - pd.Timestamp.now()).dt.days / 365
+    df['exp_dates']=df['exp_dates'].dt.strftime('%Y-%m-%d')
+    def get_calls_by_date(ticker, date):
+        return ticker.option_chain(date).calls[['strike', 'lastPrice']]
+    
+    option_data = []
+    for _, row in df.iterrows():
+        options = get_calls_by_date(ticker, row['exp_dates'])
+        options['maturity'] = row['maturity']
+        option_data.append(options)
+    
+    #option_data = [get_calls_by_date(ticker, date) for date in df['exp_dates']]
+    
+    result = pd.concat(option_data, ignore_index=True)
+    #result['maturity'] = np.concatenate([np.repeat(maturity, len(options)) for maturity, options in zip(df['maturity'], option_data)])
+    
+    result['implied vol'] = result.apply(lambda row: implied_vol(S, row['strike'], row['maturity'], r, row['lastPrice']), axis=1)
+    result['vega'] = result.apply(lambda row: 100*opt.vega_calc(r=r, S=S, K=row['strike'], T=row['maturity'], sigma=row['implied vol']), axis=1)
 
-def plot_volatility_surface(ticker, r=0.02, method="optimizer"):
-    data, S=volatility_surface(ticker, r, price=True)
-    surface=data.pivot_table(values='Implied volatility', index='Strikes', columns='Time to maturity').dropna()
+    return result[['maturity', 'strike', 'implied vol', 'vega']]
 
-    fig=plt.figure(figsize=(12,6))
+def plot_volatility_surface(ticker, r=0.02):
+    data = volatility_surface(ticker, r=r)
+    surface = data.pivot_table(values='implied vol', index='strike', columns='maturity').dropna()
 
-    ax=fig.add_subplot(111, projection='3d')
+    fig = plt.figure(figsize=(12,6))
+
+    ax = fig.add_subplot(111, projection='3d')
     x, y, z = surface.columns.values, surface.index.values, surface.values
 
-    X, Y =np.meshgrid(x,y)
+    X, Y = np.meshgrid(x,y)
 
     ax.set_xlabel("Days to expiration")
     ax.set_ylabel("Strike price")
@@ -152,6 +142,70 @@ def plot_volatility_surface(ticker, r=0.02, method="optimizer"):
 
     plt.show()
 
+def plot_volatility_heatmap(ticker, r=0.02):
+    data = volatility_surface(ticker, r=r)
+    
+    surface = data.pivot_table(values='implied vol', index='strike', columns='maturity').dropna()
+    
+    plt.figure(figsize=(12, 8))
+    sns.heatmap(
+        surface,
+        annot=False,  # Si vous voulez afficher les valeurs, mettez True
+        cmap='viridis',
+        cbar_kws={'label': 'Implied Volatility (%)'},  # Légende pour la barre de couleurs
+        linewidths=0.5  # Ajoutez des lignes pour délimiter les cases
+    )
+    
+    plt.title("Volatility Heatmap", fontsize=16)
+    plt.xlabel("Days to Expiration")
+    plt.ylabel("Strike Price")
+    plt.xticks(rotation=45)  # Rotation des ticks pour une meilleure lisibilité
+    plt.tight_layout()  # Ajuste automatiquement les marges
+    
+    plt.show()
+
+def plot_vega_surface(ticker, r=0.02):
+    data = volatility_surface(ticker, r=r)
+    surface = data.pivot_table(values='vega', index='strike', columns='maturity').dropna()
+
+    fig = plt.figure(figsize=(12,6))
+
+    ax = fig.add_subplot(111, projection='3d')
+    x, y, z = surface.columns.values, surface.index.values, surface.values
+
+    X, Y = np.meshgrid(x,y)
+
+    ax.set_xlabel("Days to expiration")
+    ax.set_ylabel("Strike price")
+    ax.set_zlabel("Vega (%)")
+    ax.set_title("Vega Surface")
+
+    surf = ax.plot_surface(X, Y, z, cmap='viridis', edgecolor='none')
+    fig.colorbar(surf, ax=ax, shrink=0.5, aspect=5)
+
+    plt.show()
+
+def plot_vega_heatmap(ticker, r=0.02):
+    data = volatility_surface(ticker, r=r)
+    
+    surface = data.pivot_table(values='vega', index='strike', columns='maturity').dropna()
+    
+    plt.figure(figsize=(12, 8))
+    sns.heatmap(
+        surface,
+        annot=False,  # Si vous voulez afficher les valeurs, mettez True
+        cmap='viridis',
+        cbar_kws={'label': 'Vega (%)'},  # Légende pour la barre de couleurs
+        linewidths=0.5  # Ajoutez des lignes pour délimiter les cases
+    )
+    
+    plt.title("Vega Heatmap", fontsize=16)
+    plt.xlabel("Days to Expiration")
+    plt.ylabel("Strike Price")
+    plt.xticks(rotation=45)  # Rotation des ticks pour une meilleure lisibilité
+    plt.tight_layout()  # Ajuste automatiquement les marges
+    
+    plt.show()
 
 # Get rikfree-rate and implied volatility
 def calibration(ticker, K, T):
