@@ -1,12 +1,83 @@
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
-import options as opt
+from scipy.stats import norm
+
+### Computation of the greeks with Black-Scholes model
+
+def black_scholes(S0, K, T, r, vol, opt_type="C"):
+    
+    d1=(np.log(S0/K) + (r+vol**2/2)*T)/(vol*np.sqrt(T))
+    d2=d1-vol*np.sqrt(T)
+    
+    try:
+        if opt_type=="C":
+            price=S0*norm.cdf(d1, 0, 1)-K*np.exp(-r*T)*norm.cdf(d2, 0, 1)
+        elif opt_type=="P":
+            price=K*np.exp(-r*T)*norm.cdf(-d2, 0, 1)-S0*norm.cdf(-d1, 0, 1)
+        return price
+    except:
+        raise ValueError("Please confirm option type, either 'C' for Call or 'P' for Put")
+        
+def delta_calc(S0, K, T, r, vol, opt_type="C"):
+    d1=(np.log(S0/K) + (r+vol**2/2)*T)/(vol*np.sqrt(T))
+    try:
+        if opt_type=="C":
+            delta_calc=norm.cdf(d1, 0, 1)
+        elif opt_type=="P":
+            delta_calc=-norm.cdf(-d1, 0, 1)
+        return delta_calc
+    except:
+        raise ValueError("Please confirm option type, either 'C' for Call or 'P' for Put")
+
+def gamma_calc(S0, K, T, r, vol, opt_type="C"):
+    d1=(np.log(S0/K) + (r+vol**2/2)*T)/(vol*np.sqrt(T))
+    try:
+        if opt_type=="C":
+            gamma_calc=norm.pdf(d1, 0, 1)/(S0*vol*np.sqrt(T))
+        elif opt_type=="P":
+            gamma_calc=norm.pdf(d1, 0, 1)/(S0*vol*np.sqrt(T))
+        return gamma_calc
+    except:
+        raise ValueError("Please confirm option type, either 'C' for Call or 'P' for Put")
+        
+def vega_calc(S0, K, T, r, vol, opt_type="C"):
+    d1=(np.log(S0/K) + (r+vol**2/2)*T)/(vol*np.sqrt(T))
+    try:
+        if opt_type=="C":
+            vega_calc=S0*norm.pdf(d1, 0, 1)*np.sqrt(T)
+        elif opt_type=="P":
+            vega_calc=S0*norm.pdf(d1, 0, 1)*np.sqrt(T)
+        return vega_calc*0.01   #for 1% change in volatility
+    except:
+        raise ValueError("Please confirm option type, either 'C' for Call or 'P' for Put")
+        
+def theta_calc(S0, K, T, r, vol, opt_type="C"):
+    d1=(np.log(S0/K) + (r+vol**2/2)*T)/(vol*np.sqrt(T))
+    d2=d1-vol*np.sqrt(T)
+    try:
+        if opt_type=="C":
+            theta_calc=-(S0*norm.pdf(d1, 0, 1)*vol)/(2*np.sqrt(T))-r*K*np.exp(-r*T)*norm.cdf(d2, 0, 1)
+        elif opt_type=="P":
+            theta_calc=-(S0*norm.pdf(d1, 0, 1)*vol)/(2*np.sqrt(T))+r*K*np.exp(-r*T)*norm.cdf(-d2, 0, 1)
+        return theta_calc/365    #percentage change for 1 day
+    except:
+        raise ValueError("Please confirm option type, either 'C' for Call or 'P' for Put")
+        
+def rho_calc(S0, K, T, r, vol, opt_type="C"):
+    d1=(np.log(S0/K) + (r+vol**2/2)*T)/(vol*np.sqrt(T))
+    d2=d1-vol*np.sqrt(T)
+    try:
+        if opt_type=="C":
+            rho_calc=K*T*np.exp(-r*T)*norm.cdf(d2, 0, 1)
+        elif opt_type=="P":
+            rho_calc=-K*T*np.exp(-r*T)*norm.cdf(-d2, 0, 1)
+        return rho_calc*0.01   #for 1% change in interest rate
+    except:
+        raise ValueError("Please confirm option type, either 'C' for Call or 'P' for Put")
 
 
-### Rajouter les dividendes !!!
-
-### Computation of the Greeks
+### Computation of the Greeks with finite method
 def get_delta(function, epsilon=1E-6, **kwargs):
     if 'S0' not in kwargs:
         raise ValueError("The 'S0' parameter (spot price) is required in **kwargs.")
@@ -102,12 +173,18 @@ def get_greeks(function, epsilon=1E-6, **kwargs):
             return result
         
         except Exception as e:
-            print(f"Error computing the {greek_name}: {e}")
-            return None
+            raise ValueError(f"Error computing the {greek_name}: {e}")
 
     greeks_df['Value'] = greeks_df.apply(compute_greek, axis=1)
 
     return greeks_df[['Greek', 'Value']]
+
+def dictionary():
+    dictionary = {
+        vanilla_option_price : get_payoff_vanilla_option,
+        digit_option_price : get_payoff_digit_option
+    }
+    return dictionary
 
 ### Get M Monte Carlo simulations of asset prices over the time period
 def monte_carlo_iteratif(S0, T, r, vol, M):
@@ -189,10 +266,9 @@ def heston_model(S0, v0, r, rho, kappa, theta, sigma, T, M):
     mu = np.array([0, 0])
     cov = np.array([[1, rho], [rho, 1]])
 
-    S = np.full(shape=(N + 1, M), fill_value=S0)  # Initialisation des prix à S0
-    v = np.full(shape=(N + 1, M), fill_value=v0)  # Initialisation des variances à v0
+    S = np.full(shape=(N + 1, M), fill_value=S0)  # Initialization of prices to S0
+    v = np.full(shape=(N + 1, M), fill_value=v0)  # Initialisazion of variances to v0
 
-    # Générer des échantillons de variables aléatoires multivariées
     Z = np.random.multivariate_normal(mu, cov, (N, M))
 
     for i in range(1, N + 1):
@@ -256,17 +332,46 @@ def vanilla_option_price(S0, K, T, r, vol, M, opt_type='C', antithetic=False):
     elif opt_type=='P':
         payoffs=np.maximum(K-final_prices, 0)
     else:
-        print("opt_type should be either 'C' for a call option or 'P' for a put option")
+        raise ValueError("opt_type should be either 'C' for a call option or 'P' for a put option")
 
     # Compute the price actualized
     option_price=np.exp(-r*T)*payoffs.mean()
 
     return option_price
 
+def get_payoff_vanilla_option(S, K, T, r, vol, M, opt_type='C', antithetic=False, long=True):
+    epsilon=1 if long else -1
+    if opt_type == 'C':
+        return epsilon*max(0, S-K)
+    elif opt_type == 'P':
+        return epsilon*max(0, K-S)
+    else:
+        raise ValueError("opt_type should be either 'C' for a call option or 'P' for a put option")
+    
+def plot_payoff_vanilla_option(S0, K, T, r, vol, M, opt_type='C', antithetic=False, long=True):
+    epsilon=1 if long else -1
+    df = pd.DataFrame(data={'Prices':np.linspace(0, 2*K, 10000)})
+    option_price = vanilla_option_price(S0, K, T, r, vol, M, opt_type, antithetic)
+    if opt_type == 'C':
+        df['Payoff'] = epsilon*(df.apply(lambda row: max(0, row['Prices']-K), axis=1)-option_price)
+    elif opt_type == 'P':
+        df['Payoff'] = epsilon*(df.apply(lambda row: max(0, K-row['Prices']), axis=1)-option_price)
+    else:
+        raise ValueError("opt_type should be either 'C' for a call option or 'P' for a put option")
+
+    # Plot the Payoff
+    plt.figure(figsize=(12,6))
+    plt.plot(df['Prices'], df['Payoff'])
+    plt.axhline(y=0, linestyle='--', color='red')
+    plt.xlabel("Prices")
+    plt.ylabel("Payoff")
+    plt.title("Payoff of Vanilla Option")
+    plt.show()
+
 
 ### Price a digit option using Monte Carlo Simulations
 
-def digit_option_price(S0, barrier, T, r, vol, digit, M, antithetic=False):
+def digit_option_price(S0, barrier, T, r, vol, digit, M, opt_type='C', antithetic=False):
     """
     S0 : spot price at time t=0
     barrier : The barrier value that needs to be reached for the option to pay out (float)
@@ -285,12 +390,48 @@ def digit_option_price(S0, barrier, T, r, vol, digit, M, antithetic=False):
     final_prices=asset_prices.iloc[-1, :]
 
     # Compute the payoff and assigned a digit if the barrier has been crossed
-    payoffs=np.where(final_prices>barrier, digit, 0)
+    if opt_type == 'C':
+        payoffs=np.where(final_prices>barrier, digit, 0)
+    elif opt_type == 'P':
+        payoffs=np.where(final_prices<=barrier, digit, 0)
+    else:
+        raise ValueError("opt_type should be either 'C' for a call option or 'P' for a put option")
 
     # Compute the price actualized
     digit_price=np.exp(-r*T)*payoffs.mean()
 
     return digit_price
+
+def get_payoff_digit_option(S, barrier, T, r, vol, digit, M, opt_type='C', antithetic=False, long=True):
+    epsilon=1 if long else -1
+    if opt_type == 'C':
+        payoff = epsilon*digit if S > barrier else 0
+        return payoff
+    elif opt_type == 'P':
+        payoff = epsilon*digit if S <= barrier else 0
+        return payoff
+    else:
+        raise ValueError("opt_type should be either 'C' for a call option or 'P' for a put option")
+
+def plot_payoff_digit_option(S0, barrier, T, r, vol, digit, M, opt_type='C', antithetic=False, long=True):
+    epsilon=1 if long else -1
+    df = pd.DataFrame(data={'Prices':np.linspace(0, 2*barrier, 10000)})
+    option_price = digit_option_price(S0, barrier, T, r, vol, digit, M, opt_type, antithetic)
+    if opt_type == 'C':
+        df['Payoff'] = epsilon*(np.where(df['Prices']>barrier, digit, 0) - option_price)
+    elif opt_type == 'P':
+        df['Payoff'] = epsilon*(np.where(df['Prices']<=barrier, digit, 0) - option_price)
+    else:
+        raise ValueError("opt_type should be either 'C' for a call option or 'P' for a put option")
+
+    # Plot the Payoff
+    plt.figure(figsize=(12,6))
+    plt.plot(df['Prices'], df['Payoff'])
+    plt.axhline(y=0, linestyle='--', color='red')
+    plt.xlabel("Prices")
+    plt.ylabel("Payoff")
+    plt.title("Payoff of Vanilla Option")
+    plt.show()
 
 ### Price a digital strip using Monte Carlo Simulations
 

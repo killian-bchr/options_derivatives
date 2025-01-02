@@ -113,11 +113,14 @@ def volatility_surface(ticker_symbol, r=0.02):
     
     result['implied vol'] = result.apply(lambda row: implied_vol(S, row['strike'], row['maturity'], r, row['lastPrice']), axis=1)
     result['vega'] = result.apply(lambda row: 100*opt.vega_calc(r=r, S=S, K=row['strike'], T=row['maturity'], sigma=row['implied vol']), axis=1)
+    result['current price'] = np.repeat(S, len(result))
 
-    return result[['maturity', 'strike', 'implied vol', 'vega']]
+    return result[['current price', 'maturity', 'strike', 'implied vol', 'vega']]
 
 def plot_volatility_surface(ticker, r=0.02):
     data = volatility_surface(ticker, r=r)
+    data['maturity'] = round(365*data['maturity']).astype(int)
+
     surface = data.pivot_table(values='implied vol', index='strike', columns='maturity').dropna()
 
     fig = plt.figure(figsize=(12,6))
@@ -127,8 +130,8 @@ def plot_volatility_surface(ticker, r=0.02):
 
     X, Y = np.meshgrid(x,y)
 
-    ax.set_xlabel("Days to expiration")
-    ax.set_ylabel("Strike price")
+    ax.set_xlabel("Days to expiration (days)")
+    ax.set_ylabel("Strike price (€)")
     ax.set_zlabel("Implied volatility (%)")
     ax.set_title("Volaility Surface")
 
@@ -144,28 +147,58 @@ def plot_volatility_surface(ticker, r=0.02):
 
 def plot_volatility_heatmap(ticker, r=0.02):
     data = volatility_surface(ticker, r=r)
+    data['maturity'] = round(365*data['maturity']).astype(int)
     
     surface = data.pivot_table(values='implied vol', index='strike', columns='maturity').dropna()
-    
+    surface = surface.iloc[::-1]
+
     plt.figure(figsize=(12, 8))
     sns.heatmap(
         surface,
-        annot=False,  # Si vous voulez afficher les valeurs, mettez True
+        annot=False,
         cmap='viridis',
-        cbar_kws={'label': 'Implied Volatility (%)'},  # Légende pour la barre de couleurs
-        linewidths=0.5  # Ajoutez des lignes pour délimiter les cases
+        cbar_kws={'label': 'Implied Volatility (%)'},
+        linewidths=0.5
+    )
+
+    current_price = round(data['current price'].iloc[0])
+    closest_strike = surface.index.get_indexer([current_price], method='nearest')[0]
+    
+    plt.hlines(
+        y=closest_strike + 0.5,
+        xmin=0,
+        xmax=surface.shape[1],
+        colors='black',
+        linestyles='--',
+        linewidth=2,
+        label=f'Stock Price'
+    )
+
+    plt.text(
+        x=surface.shape[1] + 0.2,
+        y=closest_strike + 0.5,
+        s=f'{current_price} €',
+        color='black',
+        fontsize=10,
+        ha='left',
+        va='center',
+        weight='bold'
     )
     
     plt.title("Volatility Heatmap", fontsize=16)
-    plt.xlabel("Days to Expiration")
-    plt.ylabel("Strike Price")
-    plt.xticks(rotation=45)  # Rotation des ticks pour une meilleure lisibilité
-    plt.tight_layout()  # Ajuste automatiquement les marges
+    plt.xlabel("Days to Expiration (days)")
+    plt.ylabel("Strike Price (€)")
+    plt.xticks(rotation=45)
+    plt.yticks(rotation=0)
+    plt.legend(loc='upper right')
+    plt.tight_layout()
     
     plt.show()
 
 def plot_vega_surface(ticker, r=0.02):
     data = volatility_surface(ticker, r=r)
+    data['maturity'] = round(365*data['maturity']).astype(int)
+
     surface = data.pivot_table(values='vega', index='strike', columns='maturity').dropna()
 
     fig = plt.figure(figsize=(12,6))
@@ -175,8 +208,8 @@ def plot_vega_surface(ticker, r=0.02):
 
     X, Y = np.meshgrid(x,y)
 
-    ax.set_xlabel("Days to expiration")
-    ax.set_ylabel("Strike price")
+    ax.set_xlabel("Days to expiration (days)")
+    ax.set_ylabel("Strike price (€)")
     ax.set_zlabel("Vega (%)")
     ax.set_title("Vega Surface")
 
@@ -187,23 +220,51 @@ def plot_vega_surface(ticker, r=0.02):
 
 def plot_vega_heatmap(ticker, r=0.02):
     data = volatility_surface(ticker, r=r)
-    
+    data['maturity'] = round(365*data['maturity']).astype(int)
+
     surface = data.pivot_table(values='vega', index='strike', columns='maturity').dropna()
-    
+    surface = surface.iloc[::-1]
+
     plt.figure(figsize=(12, 8))
     sns.heatmap(
         surface,
-        annot=False,  # Si vous voulez afficher les valeurs, mettez True
+        annot=False,
         cmap='viridis',
-        cbar_kws={'label': 'Vega (%)'},  # Légende pour la barre de couleurs
-        linewidths=0.5  # Ajoutez des lignes pour délimiter les cases
+        cbar_kws={'label': 'Vega (%)'},
+        linewidths=0.5
+    )
+    
+    current_price = round(data['current price'].iloc[0])
+    closest_strike = surface.index.get_indexer([current_price], method='nearest')[0]
+    
+    plt.hlines(
+        y=closest_strike + 0.5,
+        xmin=0,
+        xmax=surface.shape[1],
+        colors='black',
+        linestyles='--',
+        linewidth=2,
+        label=f'Stock Price'
+    )
+
+    plt.text(
+        x=surface.shape[1] + 0.2,
+        y=closest_strike + 0.5,
+        s=f'{current_price} €',
+        color='black',
+        fontsize=10,
+        ha='left',
+        va='center',
+        weight='bold'
     )
     
     plt.title("Vega Heatmap", fontsize=16)
-    plt.xlabel("Days to Expiration")
-    plt.ylabel("Strike Price")
-    plt.xticks(rotation=45)  # Rotation des ticks pour une meilleure lisibilité
-    plt.tight_layout()  # Ajuste automatiquement les marges
+    plt.xlabel("Days to Expiration (days)")
+    plt.ylabel("Strike Price (€)")
+    plt.xticks(rotation=45)
+    plt.yticks(rotation=0)
+    plt.legend(loc='upper right')
+    plt.tight_layout()
     
     plt.show()
 
