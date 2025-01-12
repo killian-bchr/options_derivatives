@@ -6,7 +6,17 @@ from scipy.stats import norm
 ### Computation of the greeks with Black-Scholes model
 
 def black_scholes(S0, K, T, r, vol, opt_type="C"):
-    
+    """
+    S0 : spot price at time t=0
+    K : strike price
+    T : maturity (in years)
+    r : risk-free rate
+    vol : implied volatility
+    opt_type : "C" for a call option and "P" for a put option
+
+    Return the price of a vanilla option (for either a call option or a put option) with Black-Scholes formula
+    """
+
     d1=(np.log(S0/K) + (r+vol**2/2)*T)/(vol*np.sqrt(T))
     d2=d1-vol*np.sqrt(T)
     
@@ -20,6 +30,17 @@ def black_scholes(S0, K, T, r, vol, opt_type="C"):
         raise ValueError("Please confirm option type, either 'C' for Call or 'P' for Put")
         
 def delta_calc(S0, K, T, r, vol, opt_type="C"):
+    """
+    S0 : spot price at time t=0
+    K : strike price
+    T : maturity (in years)
+    r : risk-free rate
+    vol : implied volatility
+    opt_type : "C" for a call option and "P" for a put option
+
+    Return the delta of a vanilla option (for either a call option or a put option) by derivating Black-Scholes formula
+    """
+
     d1=(np.log(S0/K) + (r+vol**2/2)*T)/(vol*np.sqrt(T))
     try:
         if opt_type=="C":
@@ -31,6 +52,17 @@ def delta_calc(S0, K, T, r, vol, opt_type="C"):
         raise ValueError("Please confirm option type, either 'C' for Call or 'P' for Put")
 
 def gamma_calc(S0, K, T, r, vol, opt_type="C"):
+    """
+    S0 : spot price at time t=0
+    K : strike price
+    T : maturity (in years)
+    r : risk-free rate
+    vol : implied volatility
+    opt_type : "C" for a call option and "P" for a put option
+
+    Return the gamma of a vanilla option (for either a call option or a put option) by derivating Black-Scholes formula
+    """
+
     d1=(np.log(S0/K) + (r+vol**2/2)*T)/(vol*np.sqrt(T))
     try:
         if opt_type=="C":
@@ -42,6 +74,18 @@ def gamma_calc(S0, K, T, r, vol, opt_type="C"):
         raise ValueError("Please confirm option type, either 'C' for Call or 'P' for Put")
         
 def vega_calc(S0, K, T, r, vol, opt_type="C"):
+    """
+    S0 : spot price at time t=0
+    K : strike price
+    T : maturity (in years)
+    r : risk-free rate
+    vol : implied volatility
+    opt_type : "C" for a call option and "P" for a put option
+
+    Return the vega of a vanilla option for 1% change in volatility
+    (for either a call option or a put option) by derivating Black-Scholes formula
+    """
+
     d1=(np.log(S0/K) + (r+vol**2/2)*T)/(vol*np.sqrt(T))
     try:
         if opt_type=="C":
@@ -53,6 +97,18 @@ def vega_calc(S0, K, T, r, vol, opt_type="C"):
         raise ValueError("Please confirm option type, either 'C' for Call or 'P' for Put")
         
 def theta_calc(S0, K, T, r, vol, opt_type="C"):
+    """
+    S0 : spot price at time t=0
+    K : strike price
+    T : maturity (in years)
+    r : risk-free rate
+    vol : implied volatility
+    opt_type : "C" for a call option and "P" for a put option
+
+    Return the theta of a vanilla option for a 1 day percentage change
+    (for either a call option or a put option) by derivating Black-Scholes formula
+    """
+
     d1=(np.log(S0/K) + (r+vol**2/2)*T)/(vol*np.sqrt(T))
     d2=d1-vol*np.sqrt(T)
     try:
@@ -65,6 +121,18 @@ def theta_calc(S0, K, T, r, vol, opt_type="C"):
         raise ValueError("Please confirm option type, either 'C' for Call or 'P' for Put")
         
 def rho_calc(S0, K, T, r, vol, opt_type="C"):
+    """
+    S0 : spot price at time t=0
+    K : strike price
+    T : maturity (in years)
+    r : risk-free rate
+    vol : implied volatility
+    opt_type : "C" for a call option and "P" for a put option
+
+    Return the rho of a vanilla option for 1% change in interest rate
+    (for either a call option or a put option) by derivating Black-Scholes formula
+    """
+
     d1=(np.log(S0/K) + (r+vol**2/2)*T)/(vol*np.sqrt(T))
     d2=d1-vol*np.sqrt(T)
     try:
@@ -78,7 +146,16 @@ def rho_calc(S0, K, T, r, vol, opt_type="C"):
 
 
 ### Computation of the Greeks with finite method
+
 def get_delta(function, epsilon=1E-6, **kwargs):
+    """
+    function : function from which we need to compute the delta
+    epsilon : the precision needed to use finite method
+    kwargs : arguments needed to use the pricing function
+
+    Return the delta of a pricing function using the finite method
+    """
+
     if 'S0' not in kwargs:
         raise ValueError("The 'S0' parameter (spot price) is required in **kwargs.")
     
@@ -93,6 +170,14 @@ def get_delta(function, epsilon=1E-6, **kwargs):
     return (price_plus-price_minus)/(2*epsilon)
 
 def get_gamma(function, epsilon=1.8E-2, **kwargs):
+    """
+    function : function from which we need to compute the gamma
+    epsilon : the precision needed to use finite method
+    kwargs : arguments needed to use the pricing function
+
+    Return the gamma of a pricing function using the finite method
+    """
+
     if 'S0' not in kwargs:
         raise ValueError("The 'S0' parameter (spot price) is required in **kwargs.")
     
@@ -108,6 +193,14 @@ def get_gamma(function, epsilon=1.8E-2, **kwargs):
     return (price_plus+price_minus-2*price)/(epsilon**2)
 
 def get_rho(function, epsilon=1E-6, **kwargs):
+    """
+    function : function from which we need to compute the rho
+    epsilon : the precision needed to use finite method
+    kwargs : arguments needed to use the pricing function
+
+    Return the rho of a pricing function using the finite method
+    """
+
     if 'r' not in kwargs:
         raise ValueError("The 'r' parameter (interest rate in percent) is required in **kwargs.")
     
@@ -122,6 +215,14 @@ def get_rho(function, epsilon=1E-6, **kwargs):
     return (r_plus-r_minus)/(2*epsilon)*0.01 #for 1% change in interest rate
 
 def get_vega(function, epsilon=1E-6, **kwargs):
+    """
+    function : function from which we need to compute the vega
+    epsilon : the precision needed to use finite method
+    kwargs : arguments needed to use the pricing function
+
+    Return the vega of a pricing function using the finite method
+    """
+
     if 'vol' not in kwargs:
         raise ValueError("The 'vol' parameter (volatility) is required in **kwargs.")
     
@@ -136,6 +237,14 @@ def get_vega(function, epsilon=1E-6, **kwargs):
     return (vol_plus-vol_minus)/(2*epsilon)*0.01 #for 1% change in volatility
 
 def get_theta(function, delta_t=0.1/365, **kwargs):
+    """
+    function : function from which we need to compute the theta
+    epsilon : the precision needed to use finite method
+    kwargs : arguments needed to use the pricing function
+
+    Return the theta of a pricing function using the finite method
+    """
+
     if 'T' not in kwargs:
         raise ValueError("The 'T' parameter (time to maturity) is required in **kwargs.")
     
@@ -148,6 +257,13 @@ def get_theta(function, delta_t=0.1/365, **kwargs):
     return ((time_current-time_plus)/delta_t)/365  # percentage change for 1 day
 
 def get_greeks(function, epsilon=1E-6, **kwargs):
+    """
+    function : function from which we need to compute the greeks
+    epsilon : the precision needed to use finite method
+    kwargs : arguments needed to use the pricing function
+
+    Return a DataFrame with all greeks and their values computed using the finite method
+    """
 
     greeks_function = {
         'delta': get_delta,
@@ -180,10 +296,15 @@ def get_greeks(function, epsilon=1E-6, **kwargs):
     return greeks_df[['Greek', 'Value']]
 
 def dictionary():
+    """
+    Return a dictionary with all pricing function in keys and their payoff function associated in value
+    """
+
     dictionary = {
         vanilla_option_price : get_payoff_vanilla_option,
         digit_option_price : get_payoff_digit_option
     }
+
     return dictionary
 
 ### Get M Monte Carlo simulations of asset prices over the time period
@@ -195,6 +316,7 @@ def monte_carlo_iteratif(S0, T, r, vol, M):
     vol : implied volatility
     M : number of simulations
     """
+
     N=round(T*252)
     dt=T/N
     nudt=(r-0.5*vol**2)*dt
@@ -340,6 +462,20 @@ def vanilla_option_price(S0, K, T, r, vol, M, opt_type='C', antithetic=False):
     return option_price
 
 def get_payoff_vanilla_option(S, K, T, r, vol, M, opt_type='C', antithetic=False, long=True):
+    """
+    S : spot price of the underlying asset
+    K : strike price
+    T : maturity (in years)
+    r : risk-free rate
+    vol : implied volatility
+    M : number of simulations
+    opt_type : "C" for a call option and "P" for a put option
+    antithetic : Boolean type (True to improve precision of results)
+    long : Boolean type (True means buying the option and False selling the option)
+
+    Return the payoff of a vanilla option for a specific spot price S
+    """
+
     epsilon=1 if long else -1
     if opt_type == 'C':
         return epsilon*max(0, S-K)
@@ -349,6 +485,20 @@ def get_payoff_vanilla_option(S, K, T, r, vol, M, opt_type='C', antithetic=False
         raise ValueError("opt_type should be either 'C' for a call option or 'P' for a put option")
     
 def plot_payoff_vanilla_option(S0, K, T, r, vol, M, opt_type='C', antithetic=False, long=True):
+    """
+    S : spot price of the underlying asset
+    K : strike price
+    T : maturity (in years)
+    r : risk-free rate
+    vol : implied volatility
+    M : number of simulations
+    opt_type : "C" for a call option and "P" for a put option
+    antithetic : Boolean type (True to improve precision of results)
+    long : Boolean type (True means buying the option and False selling the option)
+
+    Plot the payoff of a vanilla option
+    """
+    
     epsilon=1 if long else -1
     df = pd.DataFrame(data={'Prices':np.linspace(0, 2*K, 10000)})
     option_price = vanilla_option_price(S0, K, T, r, vol, M, opt_type, antithetic)
@@ -374,7 +524,7 @@ def plot_payoff_vanilla_option(S0, K, T, r, vol, M, opt_type='C', antithetic=Fal
 def digit_option_price(S0, barrier, T, r, vol, digit, M, opt_type='C', antithetic=False):
     """
     S0 : spot price at time t=0
-    barrier : The barrier value that needs to be reached for the option to pay out (float)
+    barrier : the barrier value that needs to be reached for the option to pay out (float)
     T : maturity (in years)
     r : risk-free rate
     vol : implied volatility
@@ -403,6 +553,21 @@ def digit_option_price(S0, barrier, T, r, vol, digit, M, opt_type='C', antitheti
     return digit_price
 
 def get_payoff_digit_option(S, barrier, T, r, vol, digit, M, opt_type='C', antithetic=False, long=True):
+    """
+    S : spot price of the underlying asset
+    barrier : the barrier value that needs to be reached for the option to pay out (float)
+    T : maturity (in years)
+    r : risk-free rate
+    vol : implied volatility
+    digit : value to be earned if the barrier is reached
+    M : number of simulations
+    opt_type : "C" for a call option and "P" for a put option
+    antithetic : Boolean type (True to improve precision of results)
+    long : Boolean type (True means buying the option and False selling the option)
+
+    Return the payoff of a digit option for a specific spot price S
+    """
+    
     epsilon=1 if long else -1
     if opt_type == 'C':
         payoff = epsilon*digit if S > barrier else 0
@@ -414,6 +579,21 @@ def get_payoff_digit_option(S, barrier, T, r, vol, digit, M, opt_type='C', antit
         raise ValueError("opt_type should be either 'C' for a call option or 'P' for a put option")
 
 def plot_payoff_digit_option(S0, barrier, T, r, vol, digit, M, opt_type='C', antithetic=False, long=True):
+    """
+    S : spot price of the underlying asset
+    barrier : the barrier value that needs to be reached for the option to pay out (float)
+    T : maturity (in years)
+    r : risk-free rate
+    vol : implied volatility
+    digit : value to be earned if the barrier is reached
+    M : number of simulations
+    opt_type : "C" for a call option and "P" for a put option
+    antithetic : Boolean type (True to improve precision of results)
+    long : Boolean type (True means buying the option and False selling the option)
+
+    Plot the payoff of a digit option
+    """
+
     epsilon=1 if long else -1
     df = pd.DataFrame(data={'Prices':np.linspace(0, 2*barrier, 10000)})
     option_price = digit_option_price(S0, barrier, T, r, vol, digit, M, opt_type, antithetic)
@@ -639,10 +819,10 @@ def asian_option_price(S0, K, T1, T2, n, r, vol, M, antithetic=False, type='arit
     observed_prices=asset_prices.iloc[observations, :]
 
     # Compute average price for the different observations
-    if type=='arithmetic':
+    if type == 'arithmetic':
         average_price=observed_prices.sum(axis=0)/n
 
-    elif type=='geometric':
+    elif type == 'geometric':
         average_price=observed_prices.prod(axis=0)**(1/n)
     
     else:
@@ -661,6 +841,7 @@ def autocallable_price(A, S0, H1, H2, H3, c, coupon_period, T, r, vol, M, antith
     coupon_period : period for paying the coupon (in months)
     conditionnal : Boolean type
     """
+
     # Number of observations
     n=round(T/(coupon_period/12))   # Convert coupon_period in years and get the number of observations
     alpha=round(A/S0)
